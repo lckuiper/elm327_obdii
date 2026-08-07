@@ -22,11 +22,12 @@ from elm327_obdii.polling import (
 )
 
 
-def _make_config(
+def _make_config(  # noqa: PLR0917
     profile: ProfileConfig | None = None,
     atrv_supported: bool = True,
     voltage_check: bool = True,
-    voltage_range: tuple[float, float] = (12.5, 11.8),
+    voltage_on: float = 12.5,
+    voltage_off: float = 11.8,
     grace_seconds: int = 30,
 ) -> PollerConfig:
     """Build a PollerConfig with sensible defaults."""
@@ -34,8 +35,8 @@ def _make_config(
         profile=profile or ProfileConfig(),
         atrv_supported=atrv_supported,
         voltage_check_enabled=voltage_check,
-        voltage_on=voltage_range[0],
-        voltage_off=voltage_range[1],
+        voltage_on=voltage_on,
+        voltage_off=voltage_off,
         grace_seconds=grace_seconds,
     )
 
