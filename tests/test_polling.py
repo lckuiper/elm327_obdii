@@ -22,7 +22,7 @@ from elm327_obdii.polling import (
 )
 
 
-def _make_config(
+def _make_config(  # noqa: PLR0917
     profile: ProfileConfig | None = None,
     atrv_supported: bool = True,
     voltage_check: bool = True,
