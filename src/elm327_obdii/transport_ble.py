@@ -116,8 +116,30 @@ class TransportBLE(TransportBase):
             self._ble_device.name or "Unknown Device",
             max_attempts=3,
         )
-
+        
+        _LOGGER.warning(
+            "OBDLINK DEBUG: Connected to %s (%s), starting explicit BLE pairing",
+            self._ble_device.name,
+            self._ble_device.address,
+        )
+        
+        try:
+            pair_result = await self._ble_conn.pair()
+        
+            _LOGGER.warning(
+                "OBDLINK DEBUG: BLE pair() completed for %s, result=%r",
+                self._ble_device.address,
+                pair_result,
+            )
+        except Exception:
+            _LOGGER.exception(
+                "OBDLINK DEBUG: BLE pair() failed for %s",
+                self._ble_device.address,
+            )
+            raise
+        
         services = self._ble_conn.services
+        
         write_char: str | None = None
         read_char: str | None = None
 
