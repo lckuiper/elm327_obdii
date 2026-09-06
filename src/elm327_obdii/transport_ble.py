@@ -32,6 +32,14 @@ from obdii.transports.transport_base import TransportBase
 
 _LOGGER = logging.getLogger(__name__)
 
+CUSTOM_BUILD = "lckuiper-ble_pairing-20260906-01"
+
+_LOGGER.warning(
+    "OBDLINK DEBUG: CUSTOM elm327_obdii LOADED - build=%s file=%s",
+    CUSTOM_BUILD,
+    __file__,
+)
+
 
 class TransportError(RuntimeError):
     """Raised by :class:`TransportBLE` for connection/state failures.
