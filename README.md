@@ -36,6 +36,7 @@ pip install elm327_obdii
 import asyncio
 from elm327_obdii import Poller, PollerConfig, ProfileConfig
 
+
 async def main():
     config = PollerConfig(
         profile=ProfileConfig(),
@@ -55,6 +56,7 @@ async def main():
     result = poller.poll_once()
     print(f"State: {result.state}, Voltage: {result.voltage}")
     print(f"Data: {result.data}")
+
 
 asyncio.run(main())
 ```
