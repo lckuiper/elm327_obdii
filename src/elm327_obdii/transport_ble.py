@@ -140,7 +140,7 @@ class TransportBLE(TransportBase):
             )
         except Exception:
             _LOGGER.exception(
-                "BLE pairing failed for %s",
+                "BLE pairing failed for device address %s",
                 self._ble_device.address,
             )
             raise
