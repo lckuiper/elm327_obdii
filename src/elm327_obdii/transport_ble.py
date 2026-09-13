@@ -32,14 +32,13 @@ from obdii.transports.transport_base import TransportBase
 
 _LOGGER = logging.getLogger(__name__)
 
-CUSTOM_BUILD = "lckuiper-ble_pairing-20260906-01"
+CUSTOM_BUILD = "lckuiper-ble_pairing-20260913-01"
 
 _LOGGER.warning(
-    "OBDLINK DEBUG: CUSTOM elm327_obdii LOADED - build=%s file=%s",
+    "CUSTOM elm327_obdii LOADED - build=%s file=%s",
     CUSTOM_BUILD,
     __file__,
 )
-
 
 class TransportError(RuntimeError):
     """Raised by :class:`TransportBLE` for connection/state failures.
@@ -124,9 +123,9 @@ class TransportBLE(TransportBase):
             self._ble_device.name or "Unknown Device",
             max_attempts=3,
         )
-        
-        _LOGGER.warning(
-            "OBDLINK DEBUG: Connected to %s (%s), starting explicit BLE pairing",
+               
+        _LOGGER.debug(
+            "Pairing BLE device %s (%s)",
             self._ble_device.name,
             self._ble_device.address,
         )
@@ -134,14 +133,14 @@ class TransportBLE(TransportBase):
         try:
             pair_result = await self._ble_conn.pair()
         
-            _LOGGER.warning(
-                "OBDLINK DEBUG: BLE pair() completed for %s, result=%r",
+            _LOGGER.debug(
+                "BLE pairing completed for %s, result=%r",
                 self._ble_device.address,
                 pair_result,
             )
         except Exception:
             _LOGGER.exception(
-                "OBDLINK DEBUG: BLE pair() failed for %s",
+                "BLE pairing failed for %s",
                 self._ble_device.address,
             )
             raise
