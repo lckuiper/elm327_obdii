@@ -401,32 +401,18 @@ def _apply_can_context(
 
 
 def _reset_to_default_addressing(transport: TransportBase, api: Connection) -> None:
-    """Clear any custom ATSH/ATCRA so standard Mode 01 queries work again.
+    """Clear custom CAN addressing and restore automatic flow control."""
 
-    ``ATCRA`` with no argument clears the receive filter (protocol-
-    agnostic). The header reset depends on the active protocol because
-    the ELM327 interprets ``ATSH<n>`` differently on 11-bit vs 29-bit
-    CAN - sending ``ATSH7DF`` on a 29-bit protocol (e.g. ``ATSP7``)
-    silently sets the 29-bit header to ``000007DF``, not the broadcast
-    address, so the ECU never sees the query.
-
-    Protocol numbers (from ``ATDPN``, probed lazily here so the value
-    reflects whatever the last group's init left active):
-      6, 8 = 11-bit CAN  -> ``ATSH7DF``  (functional broadcast)
-      7, 9 = 29-bit CAN  -> ``ATSH18DB33F1``  (functional broadcast)
-      others (1-5, A-C, None)  = ``ATD``  (set all defaults; heavy but correct)
-    """
+    _send_at(transport, "ATFCSM0")
     _send_at(transport, "ATCRA")
+
     protocol = _detect_protocol(api)
+
     if protocol in ("6", "8"):
         _send_at(transport, "ATSH7DF")
     elif protocol in ("7", "9"):
         _send_at(transport, "ATSH18DB33F1")
     else:
-        # Unknown or non-CAN protocol - ATD is the only safe universal
-        # reset. The caller's profile-level init (ATSPn/ATSTn) must be
-        # re-issued on the next connect; we accept that cost here because
-        # misaddressed queries are worse than a stale timeout setting.
         _LOGGER.warning(
             "Unknown ELM327 protocol %r - issuing ATD to reset addressing; "
             "profile-level init should be re-applied on next connect",
@@ -466,6 +452,20 @@ def _send_at(transport: TransportBase, command: str) -> bytes:
         return resp
 
 
+def _uses_manual_flow_control(context: CanContext | None) -> bool:
+    """Return True when a CAN context enables user-defined ISO-TP flow control."""
+    if context is None or not context.extra_init:
+        return False
+
+    commands = {
+        cmd.strip().upper()
+        for cmd in context.extra_init.split(";")
+        if cmd.strip()
+    }
+
+    return "ATFCSM1" in commands
+
+
 def _run_query_plan(
     api: Connection,
     plan: list[tuple[CanContext, list[QueryItem]]],
@@ -492,6 +492,20 @@ def _run_query_plan(
                 context.filter,
                 context.extra_init,
             )
+        
+            # ATFCSM1 changes persistent ELM327 state.  ATSH/ATCRA do not
+            # restore automatic ISO-TP flow control, so explicitly switch
+            # back to automatic mode when leaving a context that enabled it.
+            if (
+                _uses_manual_flow_control(ctx)
+                and not _uses_manual_flow_control(context)
+            ):
+                _LOGGER.debug(
+                    "query_plan: leaving manual flow-control context; "
+                    "restoring ATFCSM0"
+                )
+                _send_at(api.transport, "ATFCSM0")
+
             _apply_can_context(api.transport, context, api, unsupported)
             ctx = context
 
