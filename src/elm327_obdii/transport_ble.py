@@ -32,7 +32,7 @@ from obdii.transports.transport_base import TransportBase
 
 _LOGGER = logging.getLogger(__name__)
 
-CUSTOM_BUILD = "lckuiper-ble_pairing-20260913-01"
+CUSTOM_BUILD = "lckuiper-ble_pairing-20260914-01"
 
 _LOGGER.warning(
     "CUSTOM elm327_obdii LOADED - build=%s file=%s",
