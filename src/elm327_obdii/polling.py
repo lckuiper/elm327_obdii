@@ -228,6 +228,114 @@ class Poller:
                 raise RuntimeError("Adapter not connected - cannot scan supported PIDs")
             return scan_supported_pids(self._api)
 
+    def scan_custom_dids(
+        self,
+        start_did: int = 0x2200,
+        end_did: int = 0x22FF,
+    ) -> dict[int, bytes]:
+        """Scan a range of UDS DIDs on the Leon instrument cluster.
+    
+        Uses module 17 addressing:
+          request CAN ID  = 0x714
+          response CAN ID = 0x77E
+    
+        Only positive UDS ReadDataByIdentifier (0x62) responses are returned.
+        NRC 0x31 (Request Out Of Range) and NO DATA are ignored.
+        """
+    
+        with self._lock:
+            if self._api is None or not self._api.is_connected():
+                raise RuntimeError("Adapter not connected - cannot scan DIDs")
+    
+            transport = self._api.transport
+            results: dict[int, bytes] = {}
+    
+            _LOGGER.warning(
+                "DID scan starting: %04X-%04X on 714/77E",
+                start_did,
+                end_did,
+            )
+    
+            try:
+                # Use the same automatic ISO-TP flow control that is already
+                # proven to work for our normal Leon custom queries.
+                _send_at(transport, "ATFCSM0")
+                _send_at(transport, "ATSH714")
+                _send_at(transport, "ATCRA77E")
+    
+                for did in range(start_did, end_did + 1):
+                    request = f"22{did:04X}"
+    
+                    try:
+                        transport.write_bytes(request.encode() + b"\r")
+                        raw = transport.read_bytes()
+                    except (OSError, TimeoutError, TransportError) as err:
+                        _LOGGER.warning(
+                            "DID %04X transport error: %s",
+                            did,
+                            err,
+                        )
+                        continue
+    
+                    text = raw.decode(errors="ignore").strip()
+    
+                    # Remove whitespace so both:
+                    #
+                    #   77E 05 62 22 4B 00 61
+                    #
+                    # and other ELM formatting variants can be inspected.
+                    compact = "".join(text.upper().split())
+    
+                    # Expected positive response contains:
+                    #
+                    #   62 <DID-high> <DID-low>
+                    #
+                    positive = f"62{did:04X}"
+    
+                    if positive in compact:
+                        results[did] = raw
+    
+                        _LOGGER.warning(
+                            "DID SCAN HIT %04X -> %s",
+                            did,
+                            text,
+                        )
+    
+                    elif "7F2231" in compact:
+                        # NRC 0x31 = Request Out Of Range.
+                        # Expected for most DIDs, so don't spam the log.
+                        pass
+    
+                    elif "NODATA" in compact:
+                        pass
+    
+                    else:
+                        # Anything other than the expected NRC31/NO DATA is
+                        # interesting enough to preserve.
+                        _LOGGER.info(
+                            "DID SCAN OTHER %04X -> %s",
+                            did,
+                            text,
+                        )
+    
+            finally:
+                _reset_to_default_addressing(transport, self._api)
+                self._current_context = None
+    
+            _LOGGER.warning(
+                "DID scan complete: %d positive DIDs found",
+                len(results),
+            )
+    
+            for did, raw in results.items():
+                _LOGGER.warning(
+                    "DID RESULT %04X -> %s",
+                    did,
+                    raw.decode(errors="ignore").strip(),
+                )
+    
+            return results
+    
     def _check_voltage(self) -> tuple[PollingState, float | None]:
         """Query battery voltage via AT RV and advance the state machine.
 
