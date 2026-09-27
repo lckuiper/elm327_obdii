@@ -257,11 +257,14 @@ class Poller:
             )
     
             try:
-                # Use the same automatic ISO-TP flow control that is already
-                # proven to work for our normal Leon custom queries.
-                _send_at(transport, "ATFCSM0")
+                # Module 17 addressing.
                 _send_at(transport, "ATSH714")
                 _send_at(transport, "ATCRA77E")
+                
+                # Manual ISO-TP flow control for multi-frame responses.
+                _send_at(transport, "ATFCSH714")
+                _send_at(transport, "ATFCSD300000")
+                _send_at(transport, "ATFCSM1")
     
                 for did in range(start_did, end_did + 1):
                     request = f"22{did:04X}"
